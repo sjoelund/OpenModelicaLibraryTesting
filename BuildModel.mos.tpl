@@ -1,13 +1,8 @@
 echo(false);
 alarm(#ulimitOmc#);
 
-statFile := "#modelName#.stat";
+statFile := "files/#modelName#.stat";
 writeFile("#logFile#","#modelName#\n",append=true);
-writeFile(statFile + ".killed","Not exited cleanly");getErrorString();
-writeFile(statFile + ".flat", "Killed");getErrorString();
-writeFile(statFile + ".compile", "Killed");getErrorString();
-writeFile(statFile + ".sim", "Killed");getErrorString();
-writeFile(statFile + ".verify", "Killed");getErrorString();
 
 outputFormat:="default";
 mslRegressionOutput:="";
@@ -15,10 +10,9 @@ if not loadModel(#modelName#, {"#modelVersion#"}) then
   print(getErrorString());
   exit(1);
 end if;
-reference_reltol:="+#reference_reltol#+";
-reference_reltolDiffMinMax:="#reference_reltolDiffMinMax#";
-reference_rangeDelta:="#reference_rangeDelta#";
-simFlags:="#simFlags#";
+reference_reltol:=#reference_reltol#;
+reference_reltolDiffMinMax:=#reference_reltolDiffMinMax#;
+reference_rangeDelta:=#reference_rangeDelta#;
 
 referenceOK := false;
 referenceFiles := "#referenceFiles#";
@@ -81,14 +75,22 @@ simcode  :=if templates <> -1.0 then simcode-templates else simcode;
 templates:=if build <> -1.0 then templates-build else templates;
 timeDiff := -1.0;
 
-OpenModelica.Scripting.Internal.Time.timerTick(OpenModelica.Scripting.Internal.Time.RT_CLOCK_USER_RESERVED);
 buildRes := res[1] <> "";
-simRes  := if not buildRes then false else 0 == system("./#modelName# "+simFlags+emit_protected+" > "+simFile+" 2>&1");
+
+OpenModelica.Scripting.Internal.Time.timerTick(OpenModelica.Scripting.Internal.Time.RT_CLOCK_USER_RESERVED);
+simRes  := if not buildRes then false else 0 == system("./#modelName# #simFlags# "+emit_protected+" > "+simFile+" 2>&1");
+timeSim := OpenModelica.Scripting.Internal.Time.timerTock(OpenModelica.Scripting.Internal.Time.RT_CLOCK_USER_RESERVED);
 
 resFile := "#modelName#_res." + outputFormat;
-
 system("sed -i '300,$ d' '" + simFile + "'"); // Only keep the top 300 lines
-timeSim := OpenModelica.Scripting.Internal.Time.timerTock(OpenModelica.Scripting.Internal.Time.RT_CLOCK_USER_RESERVED);
+
+if not loadFile("toJSON.mo") then
+  print("Failed to load toJSON.mo: " + getErrorString());
+  exit(1);
+end if;
+
+json := toJSON(frontend, backend, simcode, templates, build, timeSim);
+writeFile("files/#modelName#.stat.json", json);
 
 if simRes then
   system("touch #modelName#.simsuccess");
@@ -109,7 +111,6 @@ if simRes then
     diffFiles := {prefix + "." + var for var in diffVars};
     // Create a file containing only the calibrated variables, for easy display
     if not referenceOK then
-      timeDiff := OpenModelica.Scripting.Internal.Time.timerTock(OpenModelica.Scripting.Internal.Time.RT_CLOCK_USER_RESERVED);
       referenceCell := "<td bgcolor=\"#FF0000\">"+OpenModelica.Scripting.Internal.Time.readableTime(timeDiff)+", <a href=\"files/#modelName#.diff.html\">"+String(size(diffFiles,1))+"/"+String(numCompared)+" signals failed</a></td>";
       writeFile("files/#modelName#.diff.html","<html><body><h1>#modelName# differences from the reference file</h1><p>startTime: "+String(startTime)+"</p><p>stopTime: "+String(stopTime)+"</p><p>Simulated using tolerance: "+String(tolerance)+"</p><ul>" + sum("<li>"+csvFileToVariable(file)+" <a href=\""+OpenModelica.Scripting.basename(file)+".html\">(javascript)</a> <a href=\""+OpenModelica.Scripting.basename(file)+".csv\">(csv)</a></li>" for file in diffFiles) + "</ul></body></html>");
       {writeFile(prefix + "." + var + ".html","<html>
@@ -161,5 +162,7 @@ function change(el) {
     else
       referenceCell := "<td bgcolor=\"#00FF00\">"+OpenModelica.Scripting.Internal.Time.readableTime(timeDiff)+" ("+String(numCompared)+" signals)</td>";
     end if;
+    json := toJSON(frontend, backend, simcode, templates, build, timeSim);
+    writeFile("files/#modelName#.stat.json", json);
   end if;
 end if;

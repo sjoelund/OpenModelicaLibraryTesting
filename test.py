@@ -73,7 +73,19 @@ mkdir("files");
 template = open("BuildModel.mos.tpl").read()
 
 for c in res:
-  replacements = (u"#modelName#", c), (u"#modelVersion#", libraryVersionRevision), (u"#ulimitOmc#", str(ulimitOmc)), (u"#default_tolerance#", str(default_tolerance))
+  replacements = (
+    (u"#modelName#", c),
+    (u"#modelVersion#", libraryVersionRevision),
+    (u"#ulimitOmc#", str(ulimitOmc)),
+    (u"#default_tolerance#", str(default_tolerance)),
+    (u"#reference_reltol#", str(reference_reltol)),
+    (u"#reference_reltolDiffMinMax#", str(reference_reltolDiffMinMax)),
+    (u"#reference_rangeDelta#", str(reference_rangeDelta)),
+    (u"#simFlags#", str(simFlags)),
+    (u"#referenceFiles#", str(referenceFiles or "")),
+    (u"#referenceFileNameDelimiter#", referenceFileNameDelimiter),
+    (u"#referenceFileExtension#", referenceFileExtension),
+  )
   open(c + ".mos", "w").write(multiple_replace(template, *replacements))
 
 # Upload omc directory to build slaves
