@@ -9,9 +9,12 @@ writeFile(statFile + ".compile", "Killed");getErrorString();
 writeFile(statFile + ".sim", "Killed");getErrorString();
 writeFile(statFile + ".verify", "Killed");getErrorString();
 
-outputFormat="default";
+outputFormat:="default";
 mslRegressionOutput:="";
-loadModel(#modelName#, #modelVersion#);
+if not loadModel(#modelName#, {"#modelVersion#"}) then
+  print(getErrorString());
+  exit(1);
+end if;
 reference_reltol:="+#reference_reltol#+";
 reference_reltolDiffMinMax:="#reference_reltolDiffMinMax#";
 reference_rangeDelta:="#reference_rangeDelta#";
@@ -19,8 +22,8 @@ simFlags:="#simFlags#";
 
 referenceOK := false;
 referenceFiles := "#referenceFiles#";
-referenceCell := if referenceFiles == \"\" then \"\" else \"<td>&nbsp;</td>\";
-reference := "#referenceFiles#/"+OpenModelica.Scripting.stringReplace("#modelName#",".",referenceFileNameDelimiter)+"."#referenceFileExtension#";
+referenceCell := if referenceFiles == "" then "" else "<td>&nbsp;</td>";
+reference := "#referenceFiles#/"+OpenModelica.Scripting.stringReplace("#modelName#",".","#referenceFileNameDelimiter#")+".#referenceFileExtension#";
 referenceExists := referenceFiles <> "" and regularFileExists(reference);
 if not referenceExists then
   outputFormat := "empty";
@@ -47,10 +50,10 @@ else
 end if;
 
 // Use twice as many output points as the experiment annotation suggests. Else aim for 5000 points.
-(startTime,stopTime,tolerance,numberOfIntervals,stepSize):=getSimulationOptions(#modelName#,defaultTolerance="+String(default_tolerance)+",defaultNumberOfIntervals=2500);
+(startTime,stopTime,tolerance,numberOfIntervals,stepSize):=getSimulationOptions(#modelName#,defaultTolerance=#default_tolerance#,defaultNumberOfIntervals=2500);
 numberOfIntervals := 2*numberOfIntervals;
-alarm("+ulimitOmc+"); // Reset the alarm in case the other parts took a long time (reading simulation results)
-res:=buildModel("+s+",tolerance=tolerance,outputFormat=outputFormat,numberOfIntervals=numberOfIntervals,variableFilter=variableFilter);
+alarm(#ulimitOmc#); // Reset the alarm in case the other parts took a long time (reading simulation results)
+res:=buildModel(#modelName#,tolerance=tolerance,outputFormat=outputFormat,numberOfIntervals=numberOfIntervals,variableFilter=variableFilter);
 // We built the model fine, so reset the alarm. The simulation executable will also have an alarm, making only result verification a potential to stall.
 alarm(0);
 
@@ -100,15 +103,15 @@ if simRes then
       writeFile(errFile, "\nVariables in the result:"+sum(var+"," for var in OpenModelica.Scripting.readSimulationResultVars(resFile))+"\n" + errVerify, append=true);
     end if;
     if referenceOK then
-      system(\"touch "+s+".verifysuccess\");
+      system("touch #modelName#.verifysuccess");
     end if;
     timeDiff := OpenModelica.Scripting.Internal.Time.timerTock(OpenModelica.Scripting.Internal.Time.RT_CLOCK_USER_RESERVED);
-    diffFiles := {prefix + \".\" + var for var in diffVars};
+    diffFiles := {prefix + "." + var for var in diffVars};
     // Create a file containing only the calibrated variables, for easy display
     if not referenceOK then
       timeDiff := OpenModelica.Scripting.Internal.Time.timerTock(OpenModelica.Scripting.Internal.Time.RT_CLOCK_USER_RESERVED);
-      referenceCell := "<td bgcolor=\"#FF0000\">"+OpenModelica.Scripting.Internal.Time.readableTime(timeDiff)+\", <a href=\"files/#modelName#.diff.html\">\"+String(size(diffFiles,1))+"/"+String(numCompared)+" signals failed</a></td>";
-      writeFile("files/#modelName#.diff.html","<html><body><h1>"+s+" differences from the reference file</h1><p>startTime: \"+String(startTime)+\"</p><p>stopTime: \"+String(stopTime)+\"</p><p>Simulated using tolerance: \"+String(tolerance)+\"</p><ul>\" + sum(\"<li>\"+csvFileToVariable(file)+\" <a href=\\\"\"+OpenModelica.Scripting.basename(file)+\".html\\\">(javascript)</a> <a href=\\\"\"+OpenModelica.Scripting.basename(file)+".csv\">(csv)</a></li>" for file in diffFiles) + "</ul></body></html>");
+      referenceCell := "<td bgcolor=\"#FF0000\">"+OpenModelica.Scripting.Internal.Time.readableTime(timeDiff)+", <a href=\"files/#modelName#.diff.html\">"+String(size(diffFiles,1))+"/"+String(numCompared)+" signals failed</a></td>";
+      writeFile("files/#modelName#.diff.html","<html><body><h1>#modelName# differences from the reference file</h1><p>startTime: "+String(startTime)+"</p><p>stopTime: "+String(stopTime)+"</p><p>Simulated using tolerance: "+String(tolerance)+"</p><ul>" + sum("<li>"+csvFileToVariable(file)+" <a href=\""+OpenModelica.Scripting.basename(file)+".html\">(javascript)</a> <a href=\""+OpenModelica.Scripting.basename(file)+".csv\">(csv)</a></li>" for file in diffFiles) + "</ul></body></html>");
       {writeFile(prefix + "." + var + ".html","<html>
 <head>
 <script type=\"text/javascript\" src=\"dygraph-combined.js\"></script>
@@ -139,7 +142,7 @@ if simRes then
 Parameters used for the comparison: Relative tolerance "+String(reference_reltol)+" (local), "+String(reference_reltolDiffMinMax)+" (relative to max-min). Range delta "+String(reference_rangeDelta)+".</p>
 <script type=\"text/javascript\">
 g = new Dygraph(document.getElementById(\"graphdiv\"),
-                 \""+OpenModelica.Scripting.basename(prefix + \".\" + var+".csv")+"\",{title: '"+var+"',
+                 \""+OpenModelica.Scripting.basename(prefix + "." + var + ".csv")+"\",{title: '"+var+"',
   legend: 'always',
   connectSeparatedPoints: true,
   xlabel: ['time'],

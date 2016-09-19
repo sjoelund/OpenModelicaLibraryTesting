@@ -1,6 +1,18 @@
 #!/usr/bin/env python2
 
 import os
+
+import re
+
+def multiple_replacer(*key_values):
+    replace_dict = dict(key_values)
+    replacement_function = lambda match: replace_dict[match.group(0)]
+    pattern = re.compile("|".join([re.escape(k) for k, v in key_values]), re.M)
+    return lambda string: pattern.sub(replacement_function, string)
+
+def multiple_replace(string, *key_values):
+    return multiple_replacer(*key_values)(string)
+
 from OMPython import OMCSession
 omc = OMCSession()
 
@@ -57,8 +69,12 @@ system("rm -rf "+libraryString+"*");
 system("rm -rf files/ "+log);
 mkdir("files");
 """
+
+template = open("BuildModel.mos.tpl").read()
+
 for c in res:
-  pass # print(c)
+  replacements = (u"#modelName#", c), (u"#modelVersion#", libraryVersionRevision), (u"#ulimitOmc#", str(ulimitOmc)), (u"#default_tolerance#", str(default_tolerance))
+  open(c + ".mos", "w").write(multiple_replace(template, *replacements))
 
 # Upload omc directory to build slaves
 
