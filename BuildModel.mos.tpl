@@ -4,7 +4,7 @@ alarm(#ulimitOmc#);
 statFile := "files/#modelName#.stat";
 writeFile("#logFile#","#modelName#\n",append=true);
 
-outputFormat:="default";
+outputFormat:="mat";
 mslRegressionOutput:="";
 if not loadModel(#modelName#, {"#modelVersion#"}) then
   print(getErrorString());
@@ -162,7 +162,7 @@ function change(el) {
     else
       referenceCell := "<td bgcolor=\"#00FF00\">"+OpenModelica.Scripting.Internal.Time.readableTime(timeDiff)+" ("+String(numCompared)+" signals)</td>";
     end if;
-    json := toJSON(frontend, backend, simcode, templates, build, timeSim);
+    json := toJSON(frontend, backend, simcode, templates, build, timeSim, timeDiff, diffVars);
     writeFile("files/#modelName#.stat.json", json);
   end if;
 end if;

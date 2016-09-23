@@ -32,7 +32,8 @@ setMatchingAlgorithm("PFPlusExt");
 setIndexReductionMethod("dynamicStateSelection");
 """
 
-referenceFiles=None
+referenceFiles=os.path.realpath(omhome+"/../testsuite/ReferenceFiles/msl32")
+# None
 referenceFileExtension="mat"
 referenceFileNameDelimiter="."
 default_tolerance=1e-6

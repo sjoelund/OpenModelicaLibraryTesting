@@ -1,5 +1,6 @@
 function toJSON
   input Real frontend, backend, simcode, templates, build, sim=-1.0, diff=-1.0;
+  input String diffVars[:] = fill("", 0);
   output String json;
 algorithm
   json := "{
@@ -9,7 +10,7 @@ algorithm
   \"templates\":"+(if templates <> -1.0 then String(templates) else "null")+",
   \"build\":"+(if build <> -1.0 then String(build) else "null")+",
   \"sim\":"+(if sim <> -1.0 then String(sim) else "null")+",
-  \"diff\":"+(if diff <> -1.0 then String(diff) else "null")+"
+  \"diff\":"+(if diff <> -1.0 then ("{\"time\":"+String(diff)+",\"vars\":["+sum(v + "," for v in diffVars)+"]}") else "null")+"
 }
 ";
 end toJSON;
