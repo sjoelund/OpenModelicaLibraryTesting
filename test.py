@@ -77,6 +77,7 @@ if not omc.sendExpression('setCommandLineOptions("-g=MetaModelica")'):
   print("Failed to set MetaModelica grammar")
   sys.exit(1)
 
+stats_by_libname = {}
 tests=[]
 for (library,conf) in configs:
   omc.sendExpression('clear()')
@@ -91,7 +92,9 @@ for (library,conf) in configs:
     conf["libraryLastChange"] = " %s (revision %s)" % (conf["libraryVersionRevision"],"\n".join(open(lastChange).readlines()).strip())
   res=omc.sendExpression('{c for c guard isExperiment(c) and not regexBool(typeNameString(x), "^Modelica_Synchronous\\.WorkInProgress") in getClassNames(%s.Blocks.Examples.PID_Controller, recursive=true)}' % library)
   libName=library+"_"+conf["libraryVersion"]+(("_" + conf["configExtraName"]) if conf.has_key("configExtraName") else "")
+  stats_by_libname[libName] = {"conf":conf, "stats":[]}
   tests = tests + [(r,library,libName,libName+"_"+r,conf) for r in res]
+
 
 """
 print("Number of classes to build: " + String(size(a,1)));
@@ -146,20 +149,12 @@ cursor = conn.cursor()
 # BOOLEAN NOT NULL CHECK (verify IN (0,1) AND builds IN (0,1) AND simulates IN (0,1))
 cursor.execute('''CREATE TABLE if not exists %s
              (date integer, libname text, model text, exectime real, frontend real, backend real, simcode real, templates real, compile real, verify real, verifyfail integer, finalphase integer)''' % branch)
-try:
-  old_stats = json.load(open(".db"))
-except:
-  old_stats = {}
 
 def expectedExec(c):
   (model,lib,libName,name,data) = c
-  #v = (old_stats.get(name) or {}).get("exectime") or 0.0
-  #return v
-  cursor.execute("SELECT exectime,libname,model,date FROM %s WHERE libname = ? AND model = ? ORDER BY date DESC LIMIT 1" % branch, (libName,model))
-  print "SELECT",(libName,model)
+  cursor.execute("SELECT exectime FROM %s WHERE libname = ? AND model = ? ORDER BY date DESC LIMIT 1" % branch, (libName,model))
   v = cursor.fetchone()
-  print v
-  return v or 0.0
+  return v[0] or 0.0
 
 tests=sorted(tests, key=lambda c: expectedExec(c), reverse=True)
 
@@ -173,15 +168,14 @@ print("Execution time: %.2f" % (stop-start))
 #if max(cmd_res) > 0:
 #  raise Exception("A command failed with exit status")
 
-stats=dict([(name,(model,libname,json.load(open("files/%s.stat.json" % name)))) for (model,lib,libname,name,conf) in tests])
-for k in sorted(stats.keys(), key=lambda c: stats[c][2]["exectime"], reverse=True):
-  print("%s: exectime %.2f" % (k, stats[k][2]["exectime"]))
+stats=dict([(name,(name,model,libname,json.load(open("files/%s.stat.json" % name)))) for (model,lib,libname,name,conf) in tests])
+for k in sorted(stats.keys(), key=lambda c: stats[c][3]["exectime"], reverse=True):
+  print("%s: exectime %.2f" % (k, stats[k][3]["exectime"]))
 
-#new_stats = old_stats
 for key in stats.keys():
   #new_stats[key] = stats[key][2]
-  (model,libname,data)=stats[key]
-  print(model,libname)
+  (name,model,libname,data)=stats[key]
+  stats_by_libname[libname]["stats"].append(stats[key])
   cursor.execute("INSERT INTO %s VALUES (?,?,?,?,?,?,?,?,?,?,?,?)" % branch,
     (testRunStartTimeAsEpoch,
     libname,
@@ -196,10 +190,24 @@ for key in stats.keys():
     len((data.get("diff") or {}).get("vars") or []),
     -1
   ))
-  conn.commit()
-for row in cursor.execute('SELECT * FROM %s ORDER BY date' % branch):
-  print row
+conn.commit()
 conn.close()
+
+htmltpl=open("library.html.tpl").read()
+for libname in stats_by_libname.keys():
+  conf = stats_by_libname[libname]["conf"]
+  stats = stats_by_libname[libname]["stats"]
+  replacements = (
+    (u"#fileName#", libname),
+    (u"#customCommands#", conf["customCommands"]),
+    (u"#libraryVersionRevision#", conf["libraryVersionRevision"]),
+    (u"#ulimitOmc#", str(conf["ulimitOmc"])),
+    (u"#ulimitExe#", str(conf["ulimitExe"])),
+    (u"#default_tolerance#", str(conf["default_tolerance"])),
+    (u"#simFlags#", simFlags)
+  )
+  open("%s.html" % libname, "w").write(multiple_replace(htmltpl, *replacements)
+
 #json.dump(new_stats, open(".db","w"))
 
 # Upload omc directory to build slaves
