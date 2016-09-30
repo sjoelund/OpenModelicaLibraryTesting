@@ -3,6 +3,7 @@
 # TODO: When libraries hash changes, run with the old OMC against the new libs
 #       Then run with the new OMC against the new libs
 
+import cgi
 import sys
 import os
 import re
@@ -12,6 +13,7 @@ import time
 import simplejson as json
 import argparse
 import sqlite3
+import datetime
 
 def multiple_replacer(*key_values):
     replace_dict = dict(key_values)
@@ -154,12 +156,13 @@ def expectedExec(c):
   (model,lib,libName,name,data) = c
   cursor.execute("SELECT exectime FROM %s WHERE libname = ? AND model = ? ORDER BY date DESC LIMIT 1" % branch, (libName,model))
   v = cursor.fetchone()
-  return v[0] or 0.0
+  return (v or (0.0,))[0]
 
 tests=sorted(tests, key=lambda c: expectedExec(c), reverse=True)
 
 cmd_res=[0]
 start=time.time()
+start_as_time=time.localtime()
 testRunStartTimeAsEpoch = int(start)
 cmd_res=Parallel(n_jobs=4)(delayed(runScript)(name) for (model,lib,libName,name,data) in tests)
 stop=time.time()
@@ -198,15 +201,19 @@ for libname in stats_by_libname.keys():
   conf = stats_by_libname[libname]["conf"]
   stats = stats_by_libname[libname]["stats"]
   replacements = (
-    (u"#fileName#", libname),
-    (u"#customCommands#", conf["customCommands"]),
-    (u"#libraryVersionRevision#", conf["libraryVersionRevision"]),
-    (u"#ulimitOmc#", str(conf["ulimitOmc"])),
-    (u"#ulimitExe#", str(conf["ulimitExe"])),
-    (u"#default_tolerance#", str(conf["default_tolerance"])),
-    (u"#simFlags#", simFlags)
+    (u"#omcVersion#", cgi.escape(omc_version)),
+    (u"#timeStart#", cgi.escape(time.strftime('%Y-%m-%d %H:%M:%S', start_as_time))),
+    (u"#fileName#", cgi.escape(libname)),
+    (u"#customCommands#", cgi.escape(conf["customCommands"])),
+    (u"#libraryVersionRevision#", cgi.escape(conf["libraryVersionRevision"])),
+    (u"#ulimitOmc#", cgi.escape(str(conf["ulimitOmc"]))),
+    (u"#ulimitExe#", cgi.escape(str(conf["ulimitExe"]))),
+    (u"#default_tolerance#", cgi.escape(str(conf["default_tolerance"]))),
+    (u"#simFlags#", cgi.escape(simFlags)),
+    (u"#Total#", cgi.escape(str(len(stats)))),
+    (u"#totalTime#", cgi.escape(str(datetime.timedelta(seconds=int(sum(s[3]["exectime"] for s in stats))))))
   )
-  open("%s.html" % libname, "w").write(multiple_replace(htmltpl, *replacements)
+  open("%s.html" % libname, "w").write(multiple_replace(htmltpl, *replacements))
 
 #json.dump(new_stats, open(".db","w"))
 
