@@ -150,7 +150,9 @@ conn = sqlite3.connect('sqlite3.db')
 cursor = conn.cursor()
 # BOOLEAN NOT NULL CHECK (verify IN (0,1) AND builds IN (0,1) AND simulates IN (0,1))
 cursor.execute('''CREATE TABLE if not exists %s
-             (date integer, libname text, model text, exectime real, frontend real, backend real, simcode real, templates real, compile real, verify real, verifyfail integer, finalphase integer)''' % branch)
+             (date integer NOT NULL, libname text NOT NULL, model text NOT NULL, exectime real NOT NULL,
+             frontend real NOT NULL, backend real NOT NULL, simcode real NOT NULL, templates real NOT NULL, compile real NOT NULL, simulate real NOT NULL,
+             verify real NOT NULL, verifyfail integer NOT NULL, finalphase integer NOT NULL)''' % branch)
 
 def expectedExec(c):
   (model,lib,libName,name,data) = c
@@ -179,7 +181,7 @@ for key in stats.keys():
   #new_stats[key] = stats[key][2]
   (name,model,libname,data)=stats[key]
   stats_by_libname[libname]["stats"].append(stats[key])
-  cursor.execute("INSERT INTO %s VALUES (?,?,?,?,?,?,?,?,?,?,?,?)" % branch,
+  cursor.execute("INSERT INTO %s VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)" % branch,
     (testRunStartTimeAsEpoch,
     libname,
     model,
@@ -189,17 +191,36 @@ for key in stats.keys():
     data["simcode"],
     data["templates"],
     data["build"],
+    data["sim"],
     (data.get("diff") or {}).get("time") or 0.0,
     len((data.get("diff") or {}).get("vars") or []),
-    -1
+    data["phase"]
   ))
 conn.commit()
 conn.close()
+
+def friendlyStr(f):
+  if f>60:
+    return cgi.escape(str(datetime.timedelta(seconds=int(f))))
+  else:
+    return cgi.escape("%.2f" % f)
 
 htmltpl=open("library.html.tpl").read()
 for libname in stats_by_libname.keys():
   conf = stats_by_libname[libname]["conf"]
   stats = stats_by_libname[libname]["stats"]
+  testsHTML = "\n".join(["<tr><td>%s</td><td>verify</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n" %
+    (
+      cgi.escape(s[1]),
+      friendlyStr(s[3]["sim"]),
+      friendlyStr(sum(s[3][x] for x in ["frontend","backend","simcode","templates","build"])),
+      friendlyStr(s[3]["frontend"]),
+      friendlyStr(s[3]["backend"]),
+      friendlyStr(s[3]["simcode"]),
+      friendlyStr(s[3]["templates"]),
+      friendlyStr(s[3]["build"])
+    )
+    for s in stats])
   replacements = (
     (u"#omcVersion#", cgi.escape(omc_version)),
     (u"#timeStart#", cgi.escape(time.strftime('%Y-%m-%d %H:%M:%S', start_as_time))),
@@ -211,7 +232,8 @@ for libname in stats_by_libname.keys():
     (u"#default_tolerance#", cgi.escape(str(conf["default_tolerance"]))),
     (u"#simFlags#", cgi.escape(simFlags)),
     (u"#Total#", cgi.escape(str(len(stats)))),
-    (u"#totalTime#", cgi.escape(str(datetime.timedelta(seconds=int(sum(s[3]["exectime"] for s in stats))))))
+    (u"#totalTime#", cgi.escape(str(datetime.timedelta(seconds=int(sum(s[3]["exectime"] for s in stats)))))),
+    (u"#testsHTML#", testsHTML)
   )
   open("%s.html" % libname, "w").write(multiple_replace(htmltpl, *replacements))
 

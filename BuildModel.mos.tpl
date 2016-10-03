@@ -96,7 +96,7 @@ if not loadFile("toJSON.mo") then
   exit(1);
 end if;
 
-json := toJSON(timeParsing, frontend, backend, simcode, templates, build, timeSim);
+json := toJSON(timeParsing, frontend, backend, simcode, templates, build, buildRes, timeSim, simRes);
 writeFile("files/#fileName#.stat.json", json);
 
 if simRes then
@@ -169,7 +169,7 @@ function change(el) {
     else
       referenceCell := "<td bgcolor=\"#00FF00\">"+OpenModelica.Scripting.Internal.Time.readableTime(timeDiff)+" ("+String(numCompared)+" signals)</td>";
     end if;
-    json := toJSON(timeParsing, frontend, backend, simcode, templates, build, timeSim, timeDiff, diffVars);
+    json := toJSON(timeParsing, frontend, backend, simcode, templates, build, true, timeSim, true, timeDiff, diffVars);
     writeFile("files/#fileName#.stat.json", json);
   end if;
 end if;
