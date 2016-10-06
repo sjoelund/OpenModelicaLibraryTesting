@@ -19,13 +19,13 @@
 </tr>
 <tr>
 <td>#Total#</td>
-<td>#Frontend#</td>
-<td>#Backend#</td>
-<td>#SimCode#</td>
-<td>#Templates#</td>
-<td>#Compilation#</td>
-<td>#Simulation#</td>
-<td>#Verification#</td>
+<td bgcolor="#FrontendColor#">#Frontend#</td>
+<td bgcolor="#BackendColor#">#Backend#</td>
+<td bgcolor="#SimCodeColor#">#SimCode#</td>
+<td bgcolor="#TemplatesColor#">#Templates#</td>
+<td bgcolor="#CompilationColor#">#Compilation#</td>
+<td bgcolor="#SimulationColor#">#Simulation#</td>
+<td bgcolor="#VerificationColor#">#Verification#</td>
 </tr>
 </table>
 

@@ -205,6 +205,12 @@ def friendlyStr(f):
   else:
     return cgi.escape("%.2f" % f)
 
+def checkNumSucceeded(numSucceeded, n):
+  if numSucceeded[n]==numSucceeded[n-1]:
+    return "#00FF00"
+  else:
+    return "#FFCC66"
+
 htmltpl=open("library.html.tpl").read()
 for libname in stats_by_libname.keys():
   conf = stats_by_libname[libname]["conf"]
@@ -221,6 +227,7 @@ for libname in stats_by_libname.keys():
       friendlyStr(s[3]["build"])
     )
     for s in stats])
+  numSucceeded = [len(stats)] + [sum(1 if s[3]["phase"]>=i else 0 for s in stats) for i in range(1,8)]
   replacements = (
     (u"#omcVersion#", cgi.escape(omc_version)),
     (u"#timeStart#", cgi.escape(time.strftime('%Y-%m-%d %H:%M:%S', start_as_time))),
@@ -231,7 +238,21 @@ for libname in stats_by_libname.keys():
     (u"#ulimitExe#", cgi.escape(str(conf["ulimitExe"]))),
     (u"#default_tolerance#", cgi.escape(str(conf["default_tolerance"]))),
     (u"#simFlags#", cgi.escape(simFlags)),
-    (u"#Total#", cgi.escape(str(len(stats)))),
+    (u"#Total#", cgi.escape(str(numSucceeded[0]))),
+    (u"#FrontendColor#", checkNumSucceeded(numSucceeded, 1)),
+    (u"#BackendColor#", checkNumSucceeded(numSucceeded, 2)),
+    (u"#SimCodeColor#", checkNumSucceeded(numSucceeded, 3)),
+    (u"#TemplatesColor#", checkNumSucceeded(numSucceeded, 4)),
+    (u"#CompilationColor#", checkNumSucceeded(numSucceeded, 5)),
+    (u"#SimulationColor#", checkNumSucceeded(numSucceeded, 6)),
+    (u"#VerificationColor#", checkNumSucceeded(numSucceeded, 7)),
+    (u"#Frontend#", cgi.escape(str(numSucceeded[1]))),
+    (u"#Backend#", cgi.escape(str(numSucceeded[2]))),
+    (u"#SimCode#", cgi.escape(str(numSucceeded[3]))),
+    (u"#Templates#", cgi.escape(str(numSucceeded[4]))),
+    (u"#Compilation#", cgi.escape(str(numSucceeded[5]))),
+    (u"#Simulation#", cgi.escape(str(numSucceeded[6]))),
+    (u"#Verification#", cgi.escape(str(numSucceeded[7]))),
     (u"#totalTime#", cgi.escape(str(datetime.timedelta(seconds=int(sum(s[3]["exectime"] for s in stats)))))),
     (u"#testsHTML#", testsHTML)
   )
