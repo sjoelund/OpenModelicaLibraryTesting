@@ -2,6 +2,11 @@ echo(false);
 system("mkdir -p files");
 alarm(#ulimitOmc#);
 
+removeTempFiles := true;
+if removeTempFiles then
+  setCommandLineOptions("--running-testsuite=#fileName#.tmpfiles");
+  system("rm -f #fileName#.tmpfiles");
+end if;
 statFile := "files/#fileName#.stat";
 writeFile("#logFile#","#fileName#\n",append=true);
 

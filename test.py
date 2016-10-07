@@ -179,6 +179,16 @@ for k in sorted(stats.keys(), key=lambda c: stats[c][3]["exectime"], reverse=Tru
 
 for key in stats.keys():
   #new_stats[key] = stats[key][2]
+  try:
+    lines = open("%s.tmpfiles" % key).readlines()
+  except:
+    lines = []
+  for line in lines:
+    try:
+      os.unlink(line.strip())
+    except:
+      pass
+      #print("Failed to unlink: %s" % line.strip())
   (name,model,libname,data)=stats[key]
   stats_by_libname[libname]["stats"].append(stats[key])
   cursor.execute("INSERT INTO %s VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)" % branch,
@@ -211,19 +221,33 @@ def checkNumSucceeded(numSucceeded, n):
   else:
     return "#FFCC66"
 
+def checkPhase(phase, n):
+  if phase >= n:
+    return "#00FF00"
+  else:
+    return "#FFCC66"
+
 htmltpl=open("library.html.tpl").read()
 for libname in stats_by_libname.keys():
   conf = stats_by_libname[libname]["conf"]
   stats = stats_by_libname[libname]["stats"]
-  testsHTML = "\n".join(["<tr><td>%s</td><td>verify</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n" %
+  testsHTML = "\n".join(['<tr><td>%s</td><td bgcolor="%s">verify</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td></tr>\n' %
     (
       cgi.escape(s[1]),
+      checkPhase(s[3]["phase"], 7),
+      checkPhase(s[3]["phase"], 6),
       friendlyStr(s[3]["sim"]),
+      checkPhase(s[3]["phase"], 5),
       friendlyStr(sum(s[3][x] for x in ["frontend","backend","simcode","templates","build"])),
+      checkPhase(s[3]["phase"], 1),
       friendlyStr(s[3]["frontend"]),
+      checkPhase(s[3]["phase"], 2),
       friendlyStr(s[3]["backend"]),
+      checkPhase(s[3]["phase"], 3),
       friendlyStr(s[3]["simcode"]),
+      checkPhase(s[3]["phase"], 4),
       friendlyStr(s[3]["templates"]),
+      checkPhase(s[3]["phase"], 5),
       friendlyStr(s[3]["build"])
     )
     for s in stats])
