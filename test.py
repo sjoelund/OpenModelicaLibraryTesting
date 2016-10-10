@@ -1,4 +1,5 @@
 #!/usr/bin/env python2
+# -*- coding: utf-8 -*-
 
 # TODO: When libraries hash changes, run with the old OMC against the new libs
 #       Then run with the new OMC against the new libs
@@ -92,7 +93,7 @@ for (library,conf) in configs:
   lastChange=(librarySourceFile[:-3]+".last_change") if not librarySourceFile.endswith("package.mo") else (os.path.dirname(librarySourceFile)+".last_change")
   if os.path.exists(lastChange):
     conf["libraryLastChange"] = " %s (revision %s)" % (conf["libraryVersionRevision"],"\n".join(open(lastChange).readlines()).strip())
-  res=omc.sendExpression('{c for c guard isExperiment(c) and not regexBool(typeNameString(x), "^Modelica_Synchronous\\.WorkInProgress") in getClassNames(%s.Blocks.Examples.PID_Controller, recursive=true)}' % library)
+  res=omc.sendExpression('{c for c guard isExperiment(c) and not regexBool(typeNameString(x), "^Modelica_Synchronous\\.WorkInProgress") in getClassNames(%s, recursive=true)}' % library)
   libName=library+"_"+conf["libraryVersion"]+(("_" + conf["configExtraName"]) if conf.has_key("configExtraName") else "")
   stats_by_libname[libName] = {"conf":conf, "stats":[]}
   tests = tests + [(r,library,libName,libName+"_"+r,conf) for r in res]
@@ -191,22 +192,23 @@ for key in stats.keys():
       #print("Failed to unlink: %s" % line.strip())
   (name,model,libname,data)=stats[key]
   stats_by_libname[libname]["stats"].append(stats[key])
-  cursor.execute("INSERT INTO %s VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)" % branch,
-    (testRunStartTimeAsEpoch,
+  values = (testRunStartTimeAsEpoch,
     libname,
     model,
-    data["exectime"],
-    data["frontend"],
-    data["backend"],
-    data["simcode"],
-    data["templates"],
-    data["build"],
-    data["sim"],
+    data.get("exectime") or 0.0,
+    data.get("frontend") or 0.0,
+    data.get("backend") or 0.0,
+    data.get("simcode") or 0.0,
+    data.get("templates") or 0.0,
+    data.get("build") or 0.0,
+    data.get("sim") or 0.0,
     (data.get("diff") or {}).get("time") or 0.0,
     len((data.get("diff") or {}).get("vars") or []),
     (data.get("diff") or {}).get("numCompared") or 0,
     data["phase"]
-  ))
+  )
+  # print values
+  cursor.execute("INSERT INTO %s VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)" % branch, values)
 conn.commit()
 conn.close()
 

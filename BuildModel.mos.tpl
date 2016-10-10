@@ -100,6 +100,10 @@ if not loadFile("toJSON.mo") then
   print("Failed to load toJSON.mo: " + getErrorString());
   exit(1);
 end if;
+if not loadFile("csvFileToVariable.mo") then
+  print("Failed to load csvFileToVariable.mo: " + getErrorString());
+  exit(1);
+end if;
 
 json := toJSON(timeParsing, frontend, backend, simcode, templates, build, buildRes, timeSim, simRes);
 writeFile("files/#fileName#.stat.json", json);
@@ -124,7 +128,7 @@ if simRes then
     // Create a file containing only the calibrated variables, for easy display
     if not referenceOK then
       referenceCell := "<td bgcolor=\"#FF0000\">"+OpenModelica.Scripting.Internal.Time.readableTime(timeDiff)+", <a href=\"files/#fileName#.diff.html\">"+String(size(diffFiles,1))+"/"+String(numCompared)+" signals failed</a></td>";
-      writeFile("files/#fileName#.diff.html","<html><body><h1>#modelName# differences from the reference file</h1><p>startTime: "+String(startTime)+"</p><p>stopTime: "+String(stopTime)+"</p><p>Simulated using tolerance: "+String(tolerance)+"</p><ul>" + sum("<li>"+csvFileToVariable(file)+" <a href=\""+OpenModelica.Scripting.basename(file)+".html\">(javascript)</a> <a href=\""+OpenModelica.Scripting.basename(file)+".csv\">(csv)</a></li>" for file in diffFiles) + "</ul></body></html>");
+      OpenModelica.Scripting.writeFile("files/#fileName#.diff.html","<html><body><h1>#modelName# differences from the reference file</h1><p>startTime: "+String(startTime)+"</p><p>stopTime: "+String(stopTime)+"</p><p>Simulated using tolerance: "+String(tolerance)+"</p><ul>" + sum("<li>"+csvFileToVariable(file)+" <a href=\""+OpenModelica.Scripting.basename(file)+".html\">(javascript)</a> <a href=\""+OpenModelica.Scripting.basename(file)+".csv\">(csv)</a></li>" for file in diffFiles) + "</ul></body></html>");
       {writeFile(prefix + "." + var + ".html","<html>
 <head>
 <script type=\"text/javascript\" src=\"dygraph-combined.js\"></script>
