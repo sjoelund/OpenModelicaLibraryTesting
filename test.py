@@ -152,7 +152,7 @@ cursor = conn.cursor()
 cursor.execute('''CREATE TABLE if not exists %s
              (date integer NOT NULL, libname text NOT NULL, model text NOT NULL, exectime real NOT NULL,
              frontend real NOT NULL, backend real NOT NULL, simcode real NOT NULL, templates real NOT NULL, compile real NOT NULL, simulate real NOT NULL,
-             verify real NOT NULL, verifyfail integer NOT NULL, finalphase integer NOT NULL)''' % branch)
+             verify real NOT NULL, verifyfail integer NOT NULL, verifytotal integer NOT NULL, finalphase integer NOT NULL)''' % branch)
 
 def expectedExec(c):
   (model,lib,libName,name,data) = c
@@ -191,7 +191,7 @@ for key in stats.keys():
       #print("Failed to unlink: %s" % line.strip())
   (name,model,libname,data)=stats[key]
   stats_by_libname[libname]["stats"].append(stats[key])
-  cursor.execute("INSERT INTO %s VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)" % branch,
+  cursor.execute("INSERT INTO %s VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)" % branch,
     (testRunStartTimeAsEpoch,
     libname,
     model,
@@ -204,6 +204,7 @@ for key in stats.keys():
     data["sim"],
     (data.get("diff") or {}).get("time") or 0.0,
     len((data.get("diff") or {}).get("vars") or []),
+    (data.get("diff") or {}).get("numCompared") or 0,
     data["phase"]
   ))
 conn.commit()
@@ -231,10 +232,12 @@ htmltpl=open("library.html.tpl").read()
 for libname in stats_by_libname.keys():
   conf = stats_by_libname[libname]["conf"]
   stats = stats_by_libname[libname]["stats"]
-  testsHTML = "\n".join(['<tr><td>%s</td><td bgcolor="%s">verify</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td></tr>\n' %
+  testsHTML = "\n".join(['<tr><td>%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td></tr>\n' %
     (
       cgi.escape(s[1]),
       checkPhase(s[3]["phase"], 7),
+      ("%s (%d verified)" % (friendlyStr(s[3]["diff"]["time"]), s[3]["diff"]["numCompared"])) if s[3]["phase"]>=7 else ("&nbsp;" if s[3]["diff"] is None else
+      ("%s (%d/%d verified)" % (friendlyStr(s[3]["diff"]["time"]), len(s[3]["diff"]["vars"]), s[3]["diff"]["numCompared"]))),
       checkPhase(s[3]["phase"], 6),
       friendlyStr(s[3]["sim"]),
       checkPhase(s[3]["phase"], 5),

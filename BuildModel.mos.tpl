@@ -174,7 +174,7 @@ function change(el) {
     else
       referenceCell := "<td bgcolor=\"#00FF00\">"+OpenModelica.Scripting.Internal.Time.readableTime(timeDiff)+" ("+String(numCompared)+" signals)</td>";
     end if;
-    json := toJSON(timeParsing, frontend, backend, simcode, templates, build, true, timeSim, true, timeDiff, diffVars);
+    json := toJSON(timeParsing, frontend, backend, simcode, templates, build, true, timeSim, true, timeDiff, diffVars, numCompared);
     writeFile("files/#fileName#.stat.json", json);
   end if;
 end if;
