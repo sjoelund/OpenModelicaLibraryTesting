@@ -237,9 +237,9 @@ for libname in stats_by_libname.keys():
   testsHTML = "\n".join(['<tr><td>%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td></tr>\n' %
     (
       cgi.escape(s[1]),
-      checkPhase(s[3]["phase"], 7),
+      checkPhase(s[3]["phase"], 7) if s[3]["phase"]>=6 else "#FFFFFF",
       ("%s (%d verified)" % (friendlyStr(s[3]["diff"]["time"]), s[3]["diff"]["numCompared"])) if s[3]["phase"]>=7 else ("&nbsp;" if s[3]["diff"] is None else
-      ("%s (%d/%d verified)" % (friendlyStr(s[3]["diff"]["time"]), len(s[3]["diff"]["vars"]), s[3]["diff"]["numCompared"]))),
+      ('%s (<a href="files/%s_%s.diff.html">%d/%d failed</a>)' % (friendlyStr(s[3]["diff"]["time"]), s[2], s[1], len(s[3]["diff"]["vars"]), s[3]["diff"]["numCompared"]))),
       checkPhase(s[3]["phase"], 6),
       friendlyStr(s[3]["sim"]),
       checkPhase(s[3]["phase"], 5),
