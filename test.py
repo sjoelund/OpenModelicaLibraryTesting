@@ -51,7 +51,7 @@ setIndexReductionMethod("dynamicStateSelection");
 """
   data["customCommands"] = (data.get("customCommands") or defaultCustomCommands) + (data.get("extraCustomCommands") or "")
   data["ulimitOmc"] = data.get("ulimitOmc") or 660 # 11 minutes to generate the C-code
-  data["ulimitExe"] = data.get("ulimitExe") or 10 # 8 additional minutes to initialize and run the simulation
+  data["ulimitExe"] = data.get("ulimitExe") or 8*60 # 8 additional minutes to initialize and run the simulation
   data["ulimitMemory"] = data.get("ulimitMemory") or 16000000 # ~16GB memory at most
   data["extraSimFlags"] = data.get("extraSimFlags") or "" # no extra sim flags
   data["libraryVersion"] = data.get("libraryVersion") or "default"
@@ -93,21 +93,10 @@ for (library,conf) in configs:
   lastChange=(librarySourceFile[:-3]+".last_change") if not librarySourceFile.endswith("package.mo") else (os.path.dirname(librarySourceFile)+".last_change")
   if os.path.exists(lastChange):
     conf["libraryLastChange"] = " %s (revision %s)" % (conf["libraryVersionRevision"],"\n".join(open(lastChange).readlines()).strip())
-  res=omc.sendExpression('{c for c guard isExperiment(c) and not regexBool(typeNameString(x), "^Modelica_Synchronous\\.WorkInProgress") in getClassNames(%s, recursive=true)}' % library)
+  res=omc.sendExpression('{c for c guard isExperiment(c) and not regexBool(typeNameString(x), "^Modelica_Synchronous\\.WorkInProgress") in getClassNames(%s , recursive=true)}' % library)
   libName=library+"_"+conf["libraryVersion"]+(("_" + conf["configExtraName"]) if conf.has_key("configExtraName") else "")
   stats_by_libname[libName] = {"conf":conf, "stats":[]}
   tests = tests + [(r,library,libName,libName+"_"+r,conf) for r in res]
-
-
-"""
-print("Number of classes to build: " + String(size(a,1)));
-system("rm -f *.o");
-system("rm -f *.c");
-system("rm -f *.h");
-system("rm -rf "+libraryString+"*");
-system("rm -rf files/ "+log);
-mkdir("files");
-"""
 
 template = open("BuildModel.mos.tpl").read()
 
@@ -230,31 +219,36 @@ def checkPhase(phase, n):
   else:
     return "#FFCC66"
 
+def is_non_zero_file(fpath):
+    return os.path.isfile(fpath) and os.path.getsize(fpath) > 0
+
 htmltpl=open("library.html.tpl").read()
-for libname in stats_by_libname.keys():
+for libname in sorted(stats_by_libname.keys()):
   conf = stats_by_libname[libname]["conf"]
   stats = stats_by_libname[libname]["stats"]
-  testsHTML = "\n".join(['<tr><td>%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td></tr>\n' %
-    (
-      cgi.escape(s[1]),
+  testsHTML = "\n".join(['<tr><td>%s%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td><td bgcolor="%s">%s</td></tr>\n' %
+    (lambda filename_prefix:
+      (
+      ('<a href="%s">%s</a>' % (filename_prefix + ".err", cgi.escape(s[1]))) if is_non_zero_file(filename_prefix + ".err") else cgi.escape(s[1]),
+      (' (<a href="%s">sim</a>)' % (filename_prefix + ".sim")) if is_non_zero_file(filename_prefix + ".sim") else "",
       checkPhase(s[3]["phase"], 7) if s[3]["phase"]>=6 else "#FFFFFF",
       ("%s (%d verified)" % (friendlyStr(s[3]["diff"]["time"]), s[3]["diff"]["numCompared"])) if s[3]["phase"]>=7 else ("&nbsp;" if s[3]["diff"] is None else
-      ('%s (<a href="files/%s_%s.diff.html">%d/%d failed</a>)' % (friendlyStr(s[3]["diff"]["time"]), s[2], s[1], len(s[3]["diff"]["vars"]), s[3]["diff"]["numCompared"]))),
+      ('%s (<a href="%s.diff.html">%d/%d failed</a>)' % (friendlyStr(s[3]["diff"]["time"]), filename_prefix, len(s[3]["diff"]["vars"]), s[3]["diff"]["numCompared"]))),
       checkPhase(s[3]["phase"], 6),
-      friendlyStr(s[3]["sim"]),
+      friendlyStr(s[3]["sim"] or 0),
       checkPhase(s[3]["phase"], 5),
-      friendlyStr(sum(s[3][x] for x in ["frontend","backend","simcode","templates","build"])),
+      friendlyStr(sum(s[3][x] or 0.0 for x in ["frontend","backend","simcode","templates","build"])),
       checkPhase(s[3]["phase"], 1),
-      friendlyStr(s[3]["frontend"]),
+      friendlyStr(s[3]["frontend"] or 0),
       checkPhase(s[3]["phase"], 2),
-      friendlyStr(s[3]["backend"]),
+      friendlyStr(s[3]["backend"] or 0),
       checkPhase(s[3]["phase"], 3),
-      friendlyStr(s[3]["simcode"]),
+      friendlyStr(s[3]["simcode"] or 0),
       checkPhase(s[3]["phase"], 4),
-      friendlyStr(s[3]["templates"]),
+      friendlyStr(s[3]["templates"] or 0),
       checkPhase(s[3]["phase"], 5),
-      friendlyStr(s[3]["build"])
-    )
+      friendlyStr(s[3]["build"] or 0)
+    ))(filename_prefix="files/%s_%s" % (s[2], s[1]))
     for s in stats])
   numSucceeded = [len(stats)] + [sum(1 if s[3]["phase"]>=i else 0 for s in stats) for i in range(1,8)]
   replacements = (
